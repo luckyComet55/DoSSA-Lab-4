@@ -5,6 +5,19 @@
 #include "IEcoSystem1.h"
 #include "IdEcoMemoryManager1.h"
 
+
+typedef struct Chunk {
+
+    bool_t is_free;
+
+    char* ptr;
+
+    size_t chunk_size;
+
+    struct Chunk* next;
+
+} Chunk, *ChunkPtr;
+
 typedef struct CEcoLab4 {
 
     IEcoLab4VTbl* m_pVTblIEcoLab4;
@@ -19,6 +32,12 @@ typedef struct CEcoLab4 {
 
     /* Данные экземпляра */
     char_t* m_Name;
+
+    ChunkPtr chunk_list;
+
+    uint32_t buffer_default_size;
+
+    char* buffer;
 
 } CEcoLab4, *CEcoLab4Ptr;
 

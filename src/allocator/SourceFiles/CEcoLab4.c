@@ -105,9 +105,9 @@ uint32_t ECOCALLMETHOD CEcoLab4_Release(/* in */ struct IEcoLab4* me) {
     return pCMe->m_cRef;
 }
 
-uint64_t ECOCALLMETHOD CEcoLab4_alloc(
+uint32_t ECOCALLMETHOD CEcoLab4_alloc(
     struct IEcoLab4* me,
-    size_t size_to_alloc
+    uint32_t size_to_alloc
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
     printf("alloc %ld bytes\n", size_to_alloc);
@@ -116,7 +116,7 @@ uint64_t ECOCALLMETHOD CEcoLab4_alloc(
 
 int16_t ECOCALLMETHOD CEcoLab4_dealloc(
     struct IEcoLab4* me,
-    uint64_t ptr
+    uint32_t ptr
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
     printf("dealloc at %lld\n", ptr);
@@ -166,6 +166,40 @@ IEcoLab4VTbl g_x277FC00C35624096AFCFC125B94EEC90VTbl = {
     CEcoLab4_alloc,
     CEcoLab4_dealloc
 };
+
+ChunkPtr createMemoryChunk(IEcoMemoryAllocator1* pIMem, char* chunk_ptr, uint32_t chunk_size, ChunkPtr next) {
+    ChunkPtr new_chunk = 0;
+
+    new_chunk = pIMem->pVTbl->Alloc(pIMem, sizeof(Chunk));
+
+    if (new_chunk == 0) {
+        return 0;
+    }
+
+    new_chunk->chunk_size = chunk_size;
+    new_chunk->is_free = TRUE;
+    new_chunk->ptr = chunk_ptr;
+    new_chunk->next = next;
+
+    return new_chunk;
+}
+
+void deleteChunkList(IEcoMemoryAllocator1* pIMem, ChunkPtr start_node) {
+    ChunkPtr current_ptr = start_node;
+    ChunkPtr next_ptr = 0;
+
+    if (start_node == 0) {
+        return;
+    }
+
+    do {
+        next_ptr = current_ptr->next;
+        pIMem->pVTbl->Free(pIMem, (void*) current_ptr);
+        current_ptr = next_ptr;
+    } while (current_ptr != 0);
+
+    return;
+}
 
 
 /*
@@ -225,6 +259,24 @@ int16_t ECOCALLMETHOD createCEcoLab4(/* in */ IEcoUnknown* pIUnkSystem, /* in */
 
     pCMe->m_Name = 0;
 
+    pCMe->buffer_default_size = 2 * sizeof(int) * 1024 * 1024;
+
+    pCMe->buffer = (char*)pIMem->pVTbl->Alloc(pIMem, pCMe->buffer_default_size);
+
+    if (pCMe->buffer == 0) {
+        printf("error while allocating allocator buffer of size %ld\n", pCMe->buffer_default_size);
+        return -1;
+    } else {
+        printf("successfully allocated buffer of size %ld at ptr %ld\n", pCMe->buffer_default_size, pCMe->buffer);
+    }
+
+    pCMe->chunk_list = createMemoryChunk(pIMem, pCMe->buffer, pCMe->buffer_default_size, 0);
+
+    if (pCMe->chunk_list == 0) {
+        printf("error while initializing chink list\n");
+        return -1;
+    }
+
     *ppIEcoLab4 = (IEcoLab4*)pCMe;
 
     pIBus->pVTbl->Release(pIBus);
@@ -256,6 +308,12 @@ void ECOCALLMETHOD deleteCEcoLab4(/* in */ IEcoLab4* pIEcoLab4) {
         if ( pCMe->m_pISys != 0 ) {
             pCMe->m_pISys->pVTbl->Release(pCMe->m_pISys);
         }
+
+        // delete chunk list
+        deleteChunkList(pIMem, pCMe->chunk_list);
+        // free memory allocated for buffer
+        pIMem->pVTbl->Free(pIMem, pCMe->buffer);
+
         pIMem->pVTbl->Free(pIMem, pCMe);
         pIMem->pVTbl->Release(pIMem);
     }
