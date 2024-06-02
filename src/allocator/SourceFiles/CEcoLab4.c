@@ -38,19 +38,23 @@
  */
 int16_t ECOCALLMETHOD CEcoLab4_QueryInterface(/* in */ struct IEcoLab4* me, /* in */ const UGUID* riid, /* out */ void** ppv) {
     CEcoLab4* pCMe = (CEcoLab4*)me;
-    IEcoUnknown* nonDelegating = (IEcoUnknown*)&pCMe->m_pVTblINondelegatingUnk;
-    int16_t result = 0;
 
     if (me == 0 || ppv == 0) {
         return -1;
     }
 
-    result = nonDelegating->pVTbl->QueryInterface(nonDelegating, riid, ppv);
-    if (result != 0 && pCMe->m_pIUnkOuter != 0) {
-        result = pCMe->m_pIUnkOuter->pVTbl->QueryInterface(pCMe->m_pIUnkOuter, riid, ppv);
+    if (IsEqualUGUID(riid, &IID_IEcoLab4)) {
+        *ppv = &pCMe->m_pVTblIEcoLab4;
+        pCMe->m_pVTblIEcoLab4->AddRef((IEcoLab4*)pCMe);
+    } else if (IsEqualUGUID(riid, &IID_IEcoUnknown)) {
+        *ppv = &pCMe->m_pVTblIEcoLab4;
+        pCMe->m_pVTblIEcoLab4->AddRef((IEcoLab4*)pCMe);
+    } else {
+        *ppv = 0;
+        return -1;
     }
 
-    return result;
+    return 0;
 }
 
 /*
@@ -71,7 +75,7 @@ uint32_t ECOCALLMETHOD CEcoLab4_AddRef(/* in */ struct IEcoLab4* me) {
         return -1;
     }
 
-    return pCMe->m_pVTblINondelegatingUnk->AddRef((IEcoUnknown*)&pCMe->m_pVTblINondelegatingUnk);
+    return ++pCMe->m_cRef;
 }
 
 /*
@@ -92,62 +96,12 @@ uint32_t ECOCALLMETHOD CEcoLab4_Release(/* in */ struct IEcoLab4* me) {
         return -1;
     }
 
-    return pCMe->m_pVTblINondelegatingUnk->AddRef((IEcoUnknown*)&pCMe->m_pVTblINondelegatingUnk);
-}
-
-int16_t ECOCALLMETHOD CEcoLab4_NondelegatingQueryInterface(/* in */ struct IEcoUnknown * me, /* in */ const UGUID* riid, /* out */ void** ppv) {
-    CEcoLab4* pCMe = (CEcoLab4*)((uint64_t)me - sizeof(struct IEcoLab4*));
-    int16_t result;
-    if (me == 0 || ppv == 0) {
-        return -1;
-    }
-    if (IsEqualUGUID(riid, &IID_IEcoLab4) ) {
-        *ppv = &pCMe->m_pVTblIEcoLab4;
-        ++pCMe->m_cRef;
-    }
-    else if ( IsEqualUGUID(riid, &IID_IEcoUnknown) ) {
-        *ppv = &pCMe->m_pVTblINondelegatingUnk;
-        ++pCMe->m_cRef;
-    }
-    else {
-        *ppv = 0;
-        return -1;
-    }
-    return 0;
-}
-
-uint32_t ECOCALLMETHOD CEcoLab4_NondelegatingAddRef(/* in */ struct IEcoUnknown* me) {
-    CEcoLab4* pCMe = (CEcoLab4*)((uint64_t)me - sizeof(struct IEcoLab4*) - sizeof(struct IEcoCalculatorY*) - sizeof(struct IEcoCalculatorX*));
-
-    if (me == 0 ) {
-        return -1;
-    }
-
-    return ++pCMe->m_cRef;
-}
-
-uint32_t ECOCALLMETHOD CEcoLab4_NondelegatingRelease(/* in */ struct IEcoUnknown* me) {
-    CEcoLab4* pCMe = (CEcoLab4*)((uint64_t)me - sizeof(struct IEcoLab4*) - sizeof(struct IEcoCalculatorY*) - sizeof(struct IEcoCalculatorX*));
-
-    if (me == 0 ) {
-        return -1;
-    }
-
     --pCMe->m_cRef;
 
-    if ( pCMe->m_cRef == 0 ) {
-        if (pCMe->m_pInnerUnknown != 0) {
-            if (pCMe->m_pInnerUnknown->pVTbl->Release(pCMe->m_pInnerUnknown) == 0) {
-                pCMe->m_pInnerUnknown = 0;
-            } else {
-                pCMe->m_cRef = 1;
-            }
-        }
-        if (pCMe->m_cRef == 0) {
-            deleteCEcoLab4((IEcoLab4*)pCMe);
-        }
-        return 0;
+    if (pCMe->m_cRef == 0) {
+        deleteCEcoLab4(me);
     }
+
     return pCMe->m_cRef;
 }
 
@@ -156,8 +110,8 @@ uint64_t ECOCALLMETHOD CEcoLab4_alloc(
     size_t size_to_alloc
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
-    printf("alloc %lld bytes\n", size_to_alloc);
-    return 0;
+    printf("alloc %ld bytes\n", size_to_alloc);
+    return 1313421;
 }
 
 int16_t ECOCALLMETHOD CEcoLab4_dealloc(
@@ -183,17 +137,15 @@ int16_t ECOCALLMETHOD CEcoLab4_dealloc(
 int16_t ECOCALLMETHOD initCEcoLab4(/*in*/ struct IEcoLab4* me, /* in */ struct IEcoUnknown *pIUnkSystem) {
     CEcoLab4* pCMe = (CEcoLab4*)me;
     IEcoInterfaceBus1* pIBus = 0;
-    IEcoUnknown* pOuterUnknown = (IEcoUnknown*) me;
     int16_t result = -1;
 
-    if (me == 0 ) {
+    if (me == 0) {
         return result;
     }
 
     pCMe->m_pISys = (IEcoSystem1*)pIUnkSystem;
 
     result = pCMe->m_pISys->pVTbl->QueryInterface(pCMe->m_pISys, &IID_IEcoInterfaceBus1, (void **)&pIBus);
-    result = pIBus->pVTbl->QueryComponent(pIBus, &CID_EcoLab4, pOuterUnknown, &IID_IEcoUnknown, (void**)&pCMe->m_pInnerUnknown);
 
     if (me == 0 ) {
         return result;
@@ -213,12 +165,6 @@ IEcoLab4VTbl g_x277FC00C35624096AFCFC125B94EEC90VTbl = {
     CEcoLab4_Release,
     CEcoLab4_alloc,
     CEcoLab4_dealloc
-};
-
-IEcoUnknownVTbl g_x000000000000000000000000000000AAVTblLab1 = {
-        CEcoLab4_NondelegatingQueryInterface,
-        CEcoLab4_NondelegatingAddRef,
-        CEcoLab4_NondelegatingRelease
 };
 
 
@@ -277,18 +223,7 @@ int16_t ECOCALLMETHOD createCEcoLab4(/* in */ IEcoUnknown* pIUnkSystem, /* in */
 
     pCMe->m_pVTblIEcoLab4 = &g_x277FC00C35624096AFCFC125B94EEC90VTbl;
 
-    pCMe->m_pVTblINondelegatingUnk = &g_x000000000000000000000000000000AAVTblLab1;
-
-    pCMe->m_pIUnkOuter = 0;
-    if (pIUnkOuter != 0) {
-        pCMe->m_pIUnkOuter = pIUnkOuter;
-    } else {
-        pCMe->m_pIUnkOuter = (IEcoUnknown*)&pCMe->m_pVTblINondelegatingUnk;
-    }
-
     pCMe->m_Name = 0;
-
-    pCMe->m_pInnerUnknown = 0;
 
     *ppIEcoLab4 = (IEcoLab4*)pCMe;
 

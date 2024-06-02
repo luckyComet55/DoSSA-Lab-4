@@ -9,8 +9,6 @@ typedef struct CEcoLab4 {
 
     IEcoLab4VTbl* m_pVTblIEcoLab4;
 
-    IEcoUnknownVTbl* m_pVTblINondelegatingUnk;
-
     uint32_t m_cRef;
 
     /* Интерфейс для работы с памятью */
@@ -21,10 +19,6 @@ typedef struct CEcoLab4 {
 
     /* Данные экземпляра */
     char_t* m_Name;
-    
-    IEcoUnknown* m_pInnerUnknown;
-    
-    IEcoUnknown* m_pIUnkOuter;
 
 } CEcoLab4, *CEcoLab4Ptr;
 

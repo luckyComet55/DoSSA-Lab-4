@@ -6,6 +6,36 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+int16_t test(IEcoLab4* this) {
+    int16_t result = 0;
+    uint64_t ptr = 0;
+    size_t allocating_size = sizeof(int);
+
+    printf("Allocating\n");
+    ptr = this->pVTbl->alloc(this, allocating_size);
+    if (ptr != 0) {
+        printf("sucessfully allocated %ld bytes at %lld\n", allocating_size, ptr);
+    } else {
+        printf("error while allocating %ld bytes, terminating\n", allocating_size);
+        result = -1;
+        goto Termination;
+    }
+
+    printf("Deallocating\n");
+    result = this->pVTbl->dealloc(this, ptr);
+    if (result == 0) {
+        printf("sucessfully deallocated at %lld\n", ptr);
+    } else {
+        printf("error while deallocating at %lld, terminating\n", ptr);
+        result = -1;
+        goto Termination;
+    }
+
+Termination:
+
+    return result;
+}
+
 int16_t EcoMain(IEcoUnknown* pIUnk) {
     int16_t result = -1;
     /* Указатель на системный интерфейс */
@@ -63,7 +93,7 @@ int16_t EcoMain(IEcoUnknown* pIUnk) {
     // утановка ГПСЧ
     srand(time(0));
 
-    result = 0;
+    result = test(pIEcoLab4);
 
 Release:
 
