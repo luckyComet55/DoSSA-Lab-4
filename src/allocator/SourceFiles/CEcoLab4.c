@@ -221,7 +221,7 @@ void* ECOCALLMETHOD CEcoLab4_alloc(
 
     if (found_chunk == FALSE) {
         printf("could not allocate %ld bytes\n", size_to_alloc);
-        return -1;
+        return 0;
     }
 
     newChunk = createMemoryChunk(pIMem, bestFitChunk->ptr + size_to_alloc, bestFitChunk->chunk_size - size_to_alloc, bestFitChunk->next);
@@ -238,7 +238,28 @@ int16_t ECOCALLMETHOD CEcoLab4_dealloc(
     void* ptr
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
-    printf("dealloc at %lld\n", ptr);
+    IEcoMemoryAllocator1* pIMem = pCMe->m_pIMem;
+    ChunkPtr chunk_ptr = pCMe->chunk_list;
+    bool_t freed_chunk = FALSE;
+    char* ptr_actual = (char*) ptr;
+
+    while (chunk_ptr != 0) {
+        if (chunk_ptr->ptr == ptr_actual && chunk_ptr->is_free == FALSE) {
+            printf("found chunk to free: %ld (size %ld)\n", chunk_ptr->ptr, chunk_ptr->chunk_size);
+            chunk_ptr->is_free = TRUE;
+            freed_chunk = TRUE;
+            break;
+        }
+        chunk_ptr = chunk_ptr->next;
+    }
+
+    if (freed_chunk == FALSE) {
+        printf("error while deallocating ptr %ld: could not deallocate\n", ptr_actual);
+        return -1;
+    }
+
+    vacuumBuffer(pIMem, pCMe->chunk_list);
+
     return 0;
 }
 
