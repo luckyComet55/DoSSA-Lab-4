@@ -105,18 +105,137 @@ uint32_t ECOCALLMETHOD CEcoLab4_Release(/* in */ struct IEcoLab4* me) {
     return pCMe->m_cRef;
 }
 
-uint32_t ECOCALLMETHOD CEcoLab4_alloc(
+ChunkPtr createMemoryChunk(IEcoMemoryAllocator1* pIMem, char* chunk_ptr, uint32_t chunk_size, ChunkPtr next) {
+    ChunkPtr new_chunk = 0;
+
+    new_chunk = pIMem->pVTbl->Alloc(pIMem, sizeof(Chunk));
+
+    if (new_chunk == 0) {
+        return 0;
+    }
+
+    new_chunk->chunk_size = chunk_size;
+    new_chunk->is_free = TRUE;
+    new_chunk->ptr = chunk_ptr;
+    new_chunk->next = next;
+
+    return new_chunk;
+}
+
+void deleteChunkList(IEcoMemoryAllocator1* pIMem, ChunkPtr start_node) {
+    ChunkPtr current_ptr = start_node;
+    ChunkPtr next_ptr = 0;
+
+    if (start_node == 0) {
+        return;
+    }
+
+    do {
+        next_ptr = current_ptr->next;
+        pIMem->pVTbl->Free(pIMem, (void*) current_ptr);
+        current_ptr = next_ptr;
+    } while (current_ptr != 0);
+
+    return;
+}
+
+void freeChunk(ChunkPtr chunk) {
+    if (chunk == 0) {
+        return;
+    }
+    chunk->is_free = TRUE;
+}
+
+void mergeChunks(IEcoMemoryAllocator1* pIMem, ChunkPtr chunk_left, ChunkPtr chunk_right) {
+    if (chunk_left == 0 || chunk_right == 0) {
+        return;
+    }
+
+    if (chunk_left->is_free != TRUE) {
+        printf("can't merge chunk %ld: chunk is in use\n", chunk_left->ptr);
+        return;
+    } else if (chunk_right->is_free != TRUE) {
+        printf("can't merge chunk %ld: chunk is in use\n", chunk_left->ptr);
+        return;
+    }
+
+    chunk_left->chunk_size += chunk_right->chunk_size;
+    chunk_left->next = chunk_right->next;
+
+    printf("merged chunks %ld (size %ld) and %ld (size %ld)\n", chunk_left->ptr, chunk_left->chunk_size, chunk_right->ptr, chunk_right->chunk_size);
+    
+    pIMem->pVTbl->Free(pIMem, chunk_right);
+}
+
+void vacuumBuffer(IEcoMemoryAllocator1* pIMem, ChunkPtr chunkList) {
+    ChunkPtr current = chunkList;
+    ChunkPtr next = 0;
+
+    if (current == 0) {
+        return;
+    }
+
+    next = current->next;
+
+    while (next != 0) {
+        while (next != 0 && current->is_free == TRUE && next->is_free == TRUE) {
+            mergeChunks(pIMem, current, next);
+            next = current->next;
+        }
+        if (current->next == 0) {
+            break;
+        }
+        current = current->next;
+        next = current->next;
+    }
+}
+
+
+void* ECOCALLMETHOD CEcoLab4_alloc(
     struct IEcoLab4* me,
     uint32_t size_to_alloc
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
-    printf("alloc %ld bytes\n", size_to_alloc);
-    return 1313421;
+    IEcoMemoryAllocator1* pIMem = pCMe->m_pIMem;
+    ChunkPtr bestFitChunk = pCMe->chunk_list;
+    ChunkPtr newChunk = 0;
+    uint32_t size_delta = 0;
+    uint32_t min_size_delta = (uint32_t)(-1);
+    bool_t found_chunk = FALSE;
+
+    while (bestFitChunk != 0) {
+        if (size_to_alloc > bestFitChunk->chunk_size) {
+            bestFitChunk = bestFitChunk->next;
+            continue;
+        }
+
+        size_delta = bestFitChunk->chunk_size - size_to_alloc;
+
+        if (size_delta < min_size_delta) {
+            min_size_delta = size_delta;
+            found_chunk = TRUE;
+        }
+
+        bestFitChunk = bestFitChunk->next;
+    }
+
+    if (found_chunk == FALSE) {
+        printf("could not allocate %ld bytes\n", size_to_alloc);
+        return -1;
+    }
+
+    newChunk = createMemoryChunk(pIMem, bestFitChunk->ptr + size_to_alloc, bestFitChunk->chunk_size - size_to_alloc, bestFitChunk->next);
+
+    bestFitChunk->is_free = FALSE;
+    bestFitChunk->chunk_size = size_to_alloc;
+    bestFitChunk->next = newChunk;
+
+    return (void*)bestFitChunk->ptr;
 }
 
 int16_t ECOCALLMETHOD CEcoLab4_dealloc(
     struct IEcoLab4* me,
-    uint32_t ptr
+    void* ptr
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
     printf("dealloc at %lld\n", ptr);
@@ -166,40 +285,6 @@ IEcoLab4VTbl g_x277FC00C35624096AFCFC125B94EEC90VTbl = {
     CEcoLab4_alloc,
     CEcoLab4_dealloc
 };
-
-ChunkPtr createMemoryChunk(IEcoMemoryAllocator1* pIMem, char* chunk_ptr, uint32_t chunk_size, ChunkPtr next) {
-    ChunkPtr new_chunk = 0;
-
-    new_chunk = pIMem->pVTbl->Alloc(pIMem, sizeof(Chunk));
-
-    if (new_chunk == 0) {
-        return 0;
-    }
-
-    new_chunk->chunk_size = chunk_size;
-    new_chunk->is_free = TRUE;
-    new_chunk->ptr = chunk_ptr;
-    new_chunk->next = next;
-
-    return new_chunk;
-}
-
-void deleteChunkList(IEcoMemoryAllocator1* pIMem, ChunkPtr start_node) {
-    ChunkPtr current_ptr = start_node;
-    ChunkPtr next_ptr = 0;
-
-    if (start_node == 0) {
-        return;
-    }
-
-    do {
-        next_ptr = current_ptr->next;
-        pIMem->pVTbl->Free(pIMem, (void*) current_ptr);
-        current_ptr = next_ptr;
-    } while (current_ptr != 0);
-
-    return;
-}
 
 
 /*

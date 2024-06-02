@@ -15,14 +15,14 @@ typedef struct IEcoLab4VTbl {
     uint32_t (ECOCALLMETHOD *AddRef)(/* in */ struct IEcoLab4* me);
     uint32_t (ECOCALLMETHOD *Release)(/* in */ struct IEcoLab4* me);
 
-    uint32_t (ECOCALLMETHOD *alloc)(
+    void* (ECOCALLMETHOD *alloc)(
         struct IEcoLab4* me,
         uint32_t size_to_alloc
     );
 
     int16_t (ECOCALLMETHOD *dealloc)(
         struct IEcoLab4* me,
-        uint32_t ptr
+        void* ptr
     );
 
 } IEcoLab4VTbl, *IEcoLab4VTblPtr;

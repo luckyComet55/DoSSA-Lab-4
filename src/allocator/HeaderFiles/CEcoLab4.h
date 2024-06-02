@@ -12,7 +12,7 @@ typedef struct Chunk {
 
     char* ptr;
 
-    size_t chunk_size;
+    uint32_t chunk_size;
 
     struct Chunk* next;
 
