@@ -159,10 +159,12 @@ void mergeChunks(IEcoMemoryAllocator1* pIMem, ChunkPtr chunk_left, ChunkPtr chun
         return;
     }
 
+    printf("merged chunks %ld (size %ld) and %ld (size %ld)\n", chunk_left->ptr, chunk_left->chunk_size, chunk_right->ptr, chunk_right->chunk_size);
+
     chunk_left->chunk_size += chunk_right->chunk_size;
     chunk_left->next = chunk_right->next;
 
-    printf("merged chunks %ld (size %ld) and %ld (size %ld)\n", chunk_left->ptr, chunk_left->chunk_size, chunk_right->ptr, chunk_right->chunk_size);
+    printf("in-merged chunk at %ld, size %ld\n", chunk_left->ptr, chunk_left->chunk_size);
     
     pIMem->pVTbl->Free(pIMem, chunk_right);
 }
@@ -197,26 +199,28 @@ void* ECOCALLMETHOD CEcoLab4_alloc(
 ) {
     CEcoLab4* pCMe = (CEcoLab4*) me;
     IEcoMemoryAllocator1* pIMem = pCMe->m_pIMem;
+    ChunkPtr chunk_iterator = pCMe->chunk_list;
     ChunkPtr bestFitChunk = pCMe->chunk_list;
     ChunkPtr newChunk = 0;
     uint32_t size_delta = 0;
     uint32_t min_size_delta = (uint32_t)(-1);
     bool_t found_chunk = FALSE;
 
-    while (bestFitChunk != 0) {
-        if (size_to_alloc > bestFitChunk->chunk_size) {
-            bestFitChunk = bestFitChunk->next;
+    while (chunk_iterator != 0) {
+        if (size_to_alloc > chunk_iterator->chunk_size) {
+            chunk_iterator = chunk_iterator->next;
             continue;
         }
 
-        size_delta = bestFitChunk->chunk_size - size_to_alloc;
+        size_delta = chunk_iterator->chunk_size - size_to_alloc;
 
         if (size_delta < min_size_delta) {
             min_size_delta = size_delta;
             found_chunk = TRUE;
+            bestFitChunk = chunk_iterator;
         }
 
-        bestFitChunk = bestFitChunk->next;
+        chunk_iterator = chunk_iterator->next;
     }
 
     if (found_chunk == FALSE) {
