@@ -8,11 +8,12 @@
 
 int16_t test(IEcoLab4* this) {
     int16_t result = 0;
-    uint64_t ptr = 0;
+    int* ptr = 0;
+    int* arr_ptr = 0;
     size_t allocating_size = sizeof(int);
+    size_t arr_size = 10 * sizeof(int);
 
-    printf("Allocating\n");
-    ptr = this->pVTbl->alloc(this, allocating_size);
+    ptr = (int*)this->pVTbl->alloc(this, allocating_size);
     if (ptr != 0) {
         printf("sucessfully allocated %ld bytes at %lld\n", allocating_size, ptr);
     } else {
@@ -21,12 +22,29 @@ int16_t test(IEcoLab4* this) {
         goto Termination;
     }
 
-    printf("Deallocating\n");
+    arr_ptr = (int*)this->pVTbl->alloc(this, arr_size);
+    if (arr_ptr != 0) {
+        printf("sucessfully allocated %ld bytes at %lld\n", arr_size, arr_ptr);
+    } else {
+        printf("error while allocating %ld bytes, terminating\n", arr_size);
+        result = -1;
+        goto Termination;
+    }
+
     result = this->pVTbl->dealloc(this, ptr);
     if (result == 0) {
         printf("sucessfully deallocated at %lld\n", ptr);
     } else {
         printf("error while deallocating at %lld, terminating\n", ptr);
+        result = -1;
+        goto Termination;
+    }
+
+    result = this->pVTbl->dealloc(this, arr_ptr);
+    if (result == 0) {
+        printf("sucessfully deallocated at %lld\n", arr_ptr);
+    } else {
+        printf("error while deallocating at %lld, terminating\n", arr_ptr);
         result = -1;
         goto Termination;
     }
